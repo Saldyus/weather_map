@@ -14,11 +14,13 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.ImageIcon;
@@ -159,7 +161,7 @@ public class Initial_Page extends javax.swing.JFrame {
         WIND.setBounds(40, 270, 180, 30);
 
         show.setBackground(new java.awt.Color(255, 255, 255));
-        show.setIcon(new javax.swing.ImageIcon("C:\\Users\\salva\\Desktop\\scuola\\weather_map-master\\LDGWeather\\src\\ldg_graphic\\gif\\show map.png")); // NOI18N
+        show.setIcon(new javax.swing.ImageIcon(getClass().getResource("/ldg_graphic/gif/show map.png"))); // NOI18N
         show.setBorder(null);
         show.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
         show.setOpaque(false);
@@ -189,7 +191,7 @@ public class Initial_Page extends javax.swing.JFrame {
         Sfondo.setBackground(new java.awt.Color(255, 255, 255));
         Sfondo.setFont(new java.awt.Font("Tahoma", 1, 11)); // NOI18N
         Sfondo.setForeground(new java.awt.Color(255, 255, 255));
-        Sfondo.setIcon(new javax.swing.ImageIcon("C:\\Users\\salva\\Desktop\\scuola\\weather_map-master\\LDGWeather\\src\\ldg_graphic\\gif\\fulmini.jpg")); // NOI18N
+        Sfondo.setIcon(new javax.swing.ImageIcon(getClass().getResource("/ldg_graphic/gif/fulmini.jpg"))); // NOI18N
         Sfondo.setText("By LDG Group");
         jPanel1.add(Sfondo);
         Sfondo.setBounds(0, 0, 260, 350);
@@ -216,7 +218,7 @@ public class Initial_Page extends javax.swing.JFrame {
         LDG_all all = null;
         //LDG_City_json json_city = null;
         try {
-            all = createJsonAll();
+            all = createJsonAllProxy();
             //json_city = createJsonCity();
             createMap(name);
         } catch (IOException ex) {
@@ -254,7 +256,7 @@ public class Initial_Page extends javax.swing.JFrame {
             LDG_all all = null;
             //LDG_City_json json_city = null;
             try {
-                all = createJsonAll();
+                all = createJsonAllProxy();
                 //json_city = createJsonCity();
                 createMap(name);
             } catch (IOException ex) {
@@ -287,6 +289,24 @@ public class Initial_Page extends javax.swing.JFrame {
         int returnCode = response.getStatusLine().getStatusCode();
         String body = EntityUtils.toString(response.getEntity());
 
+        System.out.println(body);
+        LDG_all all = g.fromJson(body, LDG_all.class);
+        return all;
+    }
+
+    private LDG_all createJsonAllProxy() throws IOException, URISyntaxException {
+        g = new Gson();
+
+        String body = "";
+
+        URLConnection uc = getConnection("http://api.openweathermap.org/data/2.5/weather?q=" + City.getText() + "&mode=json&appid=d400fec814c6d1b2403716b155b31e84");
+        BufferedReader in = new BufferedReader(new InputStreamReader(uc.getInputStream()));
+        String inputLine;
+        while ((inputLine = in.readLine()) != null) {
+            body = inputLine;
+            System.out.println(inputLine);
+        }
+        in.close();
         System.out.println(body);
         LDG_all all = g.fromJson(body, LDG_all.class);
         return all;
@@ -461,6 +481,13 @@ public class Initial_Page extends javax.swing.JFrame {
                 new Initial_Page().setVisible(true);
             }
         });
+    }
+
+    public static URLConnection getConnection(String urlname) throws IOException {
+        System.setProperty("java.net.useSystemProxies", "true");
+        URL url = new URL(urlname);
+        URLConnection yc = url.openConnection();
+        return yc;
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
