@@ -500,7 +500,7 @@ public class Initial_Page extends javax.swing.JFrame {
         HPA.setText("Pressure: " + all.getMain().getPressure() + " HPA");
         Temperature.setText("" + getCelsius(all.getMain().getTemp()) + "°C");
         setGif(all);
-        WIND.setText("Wind: " + all.getWind().getSpeed() + "m/s ");
+        WIND.setText("Wind: " + all.getWind().getSpeed() + " m/s ");
         try{
             WIND.setText(WIND.getText() + getDirection(all.getWind().getDeg()));
         }catch(NullPointerException e){
