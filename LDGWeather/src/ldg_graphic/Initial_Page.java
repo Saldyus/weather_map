@@ -6,8 +6,8 @@
 package ldg_graphic;
 
 import com.google.gson.Gson;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -16,22 +16,29 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.PrintStream;
+import java.net.InetAddress;
 import java.net.MalformedURLException;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.ImageIcon;
-import ldg_weather.LDG_City;
 import ldg_weather.LDG_City_json;
+import ldg_weather.LDG_Position;
+import static ldg_weather.LDG_Prova.getConnection;
 import ldg_weather.LDG_all;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.fluent.Request;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
-import org.dom4j.io.OutputFormat;
 
 /**
  *
@@ -207,7 +214,86 @@ public class Initial_Page extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void PositionActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_PositionActionPerformed
+        try {
+            g = new Gson();
+            HttpPost request = new HttpPost("https://www.googleapis.com/geolocation/v1/geolocate?key=AIzaSyAh79Rh756UTB0PKLkmBLb2sO0yKoHBKSo");
 
+            JsonObject radice = new JsonObject();
+            JsonArray wifi = new JsonArray();
+            JsonObject mac = new JsonObject();
+
+            InetAddress ip = InetAddress.getLocalHost();
+            NetworkInterface network = NetworkInterface.getByInetAddress(ip);
+
+            Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+
+            byte[] m = network.getHardwareAddress();
+            StringBuilder sb = new StringBuilder();
+            /*while (true) {
+                NetworkInterface ni = networkInterfaces.nextElement();
+                if (ni.getName().equals("wlan2")) {
+                    m = ni.getHardwareAddress();
+                    break;
+                }
+            }*/
+            for (int i = 0; i < m.length; i++) {
+                sb.append(String.format("%02X%s", m[i], (i < m.length - 1) ? "-" : ""));
+            }
+
+            mac.addProperty("macAddress", sb.toString());
+            wifi.add(mac);
+            radice.add("wifiAccessPoints", wifi);
+
+            request.setHeader("Content-type", "application/json");
+
+            StringEntity entity = new StringEntity(radice.toString(), "UTF-8");
+
+            entity.setContentType("application/json");
+            request.setEntity(entity);
+            HttpResponse response = null;
+            HttpClient httpClient = new DefaultHttpClient();
+
+            try {
+
+                response = httpClient.execute(request);
+            } catch (SocketException se) {
+                throw se;
+            }
+
+            BufferedReader rd = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+
+            //Displaying the response received.
+            String line = "";
+            String position = "";
+            while ((line = rd.readLine()) != null) {
+                position = position + line;
+            }
+            
+            position = position.replaceAll(" ", "");
+            System.out.println("position: "+position);
+            LDG_Position pos = g.fromJson(position, LDG_Position.class);
+
+            
+            LDG_all all = null;
+            //LDG_City_json json_city = null;
+            try {
+                all = createJsonAllProxy(pos.getLocation().getLat().toString(), pos.getLocation().getLng().toString());
+                Name.setText(all.getName());
+                createMap(pos.getLocation().getLat().toString(), pos.getLocation().getLng().toString());
+            } catch (IOException ex) {
+                Logger.getLogger(Initial_Page.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (URISyntaxException ex) {
+                Logger.getLogger(Initial_Page.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            try {
+                setValue(all);
+            } catch (IOException ex) {
+                Logger.getLogger(Initial_Page.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
+        } catch (IOException ex) {
+            Logger.getLogger(Initial_Page.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }//GEN-LAST:event_PositionActionPerformed
 
     private void SearchActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_SearchActionPerformed
@@ -271,7 +357,29 @@ public class Initial_Page extends javax.swing.JFrame {
             }
         }
     }//GEN-LAST:event_formKeyPressed
+    
+    private LDG_all createJsonAll(String lat, String lon) throws URISyntaxException, IOException {
+        URIBuilder builder = new URIBuilder().setScheme("http")
+                .setHost("api.openweathermap.org")
+                .setPath("data/2.5/weather")
+                .addParameter("lat", lat)
+                .addParameter("lon", lon)
+                .addParameter("mode", "json")
+                .addParameter("appid", "d400fec814c6d1b2403716b155b31e84");
 
+        System.out.println(builder.build());
+
+        HttpResponse response = Request.Get(builder.build())
+                .execute().returnResponse();
+
+        int returnCode = response.getStatusLine().getStatusCode();
+        String body = EntityUtils.toString(response.getEntity());
+
+        System.out.println(body);
+        LDG_all all = g.fromJson(body, LDG_all.class);
+        return all;
+    }
+    
     private LDG_all createJsonAll() throws IOException, URISyntaxException {
         g = new Gson();
         URIBuilder builder = new URIBuilder().setScheme("http")
@@ -293,7 +401,25 @@ public class Initial_Page extends javax.swing.JFrame {
         LDG_all all = g.fromJson(body, LDG_all.class);
         return all;
     }
+    
+    private LDG_all createJsonAllProxy(String lat, String lon) throws IOException, URISyntaxException {
+        g = new Gson();
 
+        String body = "";
+
+        URLConnection uc = getConnection("http://api.openweathermap.org/data/2.5/weather?lat=" + lat + "&lon=" + lon + "&mode=json&appid=d400fec814c6d1b2403716b155b31e84");
+        BufferedReader in = new BufferedReader(new InputStreamReader(uc.getInputStream()));
+        String inputLine;
+        while ((inputLine = in.readLine()) != null) {
+            body = inputLine;
+            System.out.println(inputLine);
+        }
+        in.close();
+        System.out.println(body);
+        LDG_all all = g.fromJson(body, LDG_all.class);
+        return all;
+    }
+    
     private LDG_all createJsonAllProxy() throws IOException, URISyntaxException {
         g = new Gson();
 
@@ -322,7 +448,30 @@ public class Initial_Page extends javax.swing.JFrame {
 
         return city;
     }
-
+    
+    private void createMap(String lat, String lon) {
+        try {
+            String ur_map = "https://maps.googleapis.com/maps/api/staticmap?center=" + lat + "," + lon + "&markers=icon:http://tinyurl.com/2ftvtt6%7C" + lat + "," + lon + "&zoom=11&size=350x350&key=AIzaSyAh79Rh756UTB0PKLkmBLb2sO0yKoHBKSo";
+            String destinationFile = "image.jpg";
+            URL url = new URL(ur_map);
+            InputStream is = url.openStream();
+            OutputStream os = new FileOutputStream(destinationFile);
+            byte[] b = new byte[2048];
+            int length;
+            while ((length = is.read(b)) != -1) {
+                os.write(b, 0, length);
+            }
+            is.close();
+            os.close();
+        } catch (MalformedURLException ex) {
+            Logger.getLogger(Initial_Page.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
+            Logger.getLogger(Initial_Page.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        ImageIcon imageIcon = new ImageIcon((new ImageIcon("image.jpg")).getImage().getScaledInstance(350, 350, java.awt.Image.SCALE_SMOOTH));
+        map.setIcon(imageIcon);
+    }
+    
     private void createMap(String name) {
         try {
             String ur_map = "https://maps.googleapis.com/maps/api/staticmap?center=" + name + "&markers=icon:http://tinyurl.com/2ftvtt6%7C" + name + "&zoom=11&size=350x350&key=AIzaSyAh79Rh756UTB0PKLkmBLb2sO0yKoHBKSo";
