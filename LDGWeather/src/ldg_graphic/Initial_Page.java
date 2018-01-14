@@ -273,7 +273,6 @@ public class Initial_Page extends javax.swing.JFrame {
             System.out.println("position: "+position);
             LDG_Position pos = g.fromJson(position, LDG_Position.class);
 
-            
             LDG_all all = null;
             //LDG_City_json json_city = null;
             try {
@@ -498,10 +497,14 @@ public class Initial_Page extends javax.swing.JFrame {
     private void setValue(LDG_all all) throws IOException {
         City.setText("");
         SKY.setText("Sky: " + all.getWeather().get(0).getDescription());
-        WIND.setText("Wind: " + all.getWind().getSpeed() + "Km/h " + getDirection(all.getWind().getDeg()));
         HPA.setText("Pressure: " + all.getMain().getPressure() + " HPA");
         Temperature.setText("" + getCelsius(all.getMain().getTemp()) + "°C");
         setGif(all);
+        WIND.setText("Wind: " + all.getWind().getSpeed() + "m/s ");
+        try{
+            WIND.setText(WIND.getText() + getDirection(all.getWind().getDeg()));
+        }catch(NullPointerException e){
+        }
     }
 
     private String getCelsius(Double kelvin) {
